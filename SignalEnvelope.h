@@ -7,8 +7,8 @@
 
   Editions:
   - 0.0.1	: First version
-  - 0.0.2	: Added Operation mode for dual envelope functionality (and assoc. variables. 
-		  Added constructors for when thresolds and baseline are unknown at time of building.
+  - 0.0.2	: Added Operation mode for dual envelope functionality (and assoc. variables). 
+		  Added constructors for when thresholds and baseline are unknown at time of building.
 
   SignalEnvelope.h v.01 - Library for 'duino
   https://github.com/newEndeavour/SignalEnvelope

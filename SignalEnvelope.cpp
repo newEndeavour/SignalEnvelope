@@ -1,13 +1,13 @@
 /*
   File:         SignalEnvelope.cpp
-  Version:      0.0.2
+  Version:      0.0.3
   Date:         19-Dec-2018
-  Revision:     19-Jan-2019
-  Author:       Jerome Drouin
+  Revision:     25-Jan-2019
+  Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   Editions:	Please go to SignalEnvelope.h for Edition Notes.
  
-  SignalEnvelope.h v.01 - Library for 'duino
+  SignalEnvelope.h - Library for 'duino
   https://github.com/newEndeavour/SignalEnvelope
   
   The SignalEnvelope object implements an Envelope for Touch decoding 
@@ -54,6 +54,9 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 		&& (_operation!=1) 
 		&& (_operation!=2))	error =-4;		// incorrect operation
 
+	//Auto Calibration of Baseline
+	Autocal_Millis 		= INITIAL_AUTOCAL_FREQ;			
+
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
 	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for avgma1 = baseline
@@ -69,7 +72,9 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 	envelope_lo		= 0.0;
 
 	isAvgUpdate		= 0;
+	isBaselineUpdate 	= 0;
 
+	lastCal 		= millis();         		// set millis for start
 }
 
 
@@ -82,6 +87,9 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
 	if ((_operation!=0) 
 		&& (_operation!=1) 
 		&& (_operation!=2))	error =-4;		// incorrect operation
+
+	//Auto Calibration of Baseline
+	Autocal_Millis 		= INITIAL_AUTOCAL_FREQ;
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
@@ -98,7 +106,9 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
 	envelope_lo		= _baseline;
 
 	isAvgUpdate		= 0;
+	isBaselineUpdate 	= 0;
 
+	lastCal 		= millis();         		// set millis for start
 }
 
 
@@ -115,6 +125,9 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, 
 		&& (_operation!=2))	error =-4;		// incorrect operation
 	
 
+	//Auto Calibration of Baseline
+	Autocal_Millis 		= INITIAL_AUTOCAL_FREQ;
+
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
 	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for avgma1 = baseline
@@ -130,7 +143,9 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, 
 	envelope_lo		= _baseline;
 
 	isAvgUpdate		= 0;
+	isBaselineUpdate 	= 0;
 	
+	lastCal 		= millis();         		// set millis for start
 }
 
 
@@ -224,6 +239,13 @@ int SignalEnvelope::GetisAvgUpdate(void)
 }
 
 
+//Returns isBaselineUpdate
+int SignalEnvelope::GetisBaselineUpdate(void)
+{
+	return isBaselineUpdate;
+}
+
+
 //Set the envelope speed
 void SignalEnvelope::SetSpeed(uint8_t _speed)
 {
@@ -293,6 +315,27 @@ float SignalEnvelope::GetTimedecay(void)
 	return timedecay;	
 }
 
+
+//Disable Auto Calibration
+void SignalEnvelope::Disable_AutoCal(void)
+{
+	Autocal_Millis = 0x0FFFFFFFL;
+}
+
+//Reset Auto Calibration
+void SignalEnvelope::Reset_AutoCal(void)
+{
+	Autocal_Millis = INITIAL_AUTOCAL_FREQ;
+}
+
+
+//Set the Autocal frequency parameter
+void SignalEnvelope::Set_Autocal_Millis(unsigned long _autocal_Millis)
+{
+	Autocal_Millis = _autocal_Millis;
+}
+
+
 // Private Methods /////////////////////////////////////////////////////////////
 // Functions only available to other functions in this library
 // Update Up Envelope
@@ -337,17 +380,39 @@ float decay;
 }
 
 
-// Update Baseline Average
-void SignalEnvelope::UpdatebaselineMA1(float rawSignal)
+// Update Average MA1
+void SignalEnvelope::UpdateAvgMA1(float rawSignal)
 {
 	//avgma1 = MA(1) with timedecay factor = f(speed)
 	avgma1		= timedecay * avgma1 + (1 - timedecay) * rawSignal;
-	baseline 	= avgma1;
+	isAvgUpdate	= 1;
 }
 
 
+// Update Baseline 
+// Note: 
+//	Baseline Calibration
+// 	only calibrate if time since last calibration is greater than Autocal_Millis 
+// 	and rawSignal is inside thres range. 
+// 	This is an attempt to keep from calibrating when the envelope threshold is being crossed.
+void SignalEnvelope::UpdateBaseline()
+{
+long now = millis();
+
+	if (now - lastCal > Autocal_Millis) {
+		baseline = avgma1;
+		lastCal  = now;
+		isBaselineUpdate = 1;
+	} else {
+		isBaselineUpdate = 0;
+	}
+}
+
+
+// Calculates Envelope
 void SignalEnvelope::CalculateEnvelope(float rawSignal)
 {
+	isAvgUpdate	= 0;
 
 	//Envelope_up
 	if (operation==0) {
@@ -355,12 +420,10 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 
 		//update average, baseline
 		if (rawSignal<thres_upper) {
-			UpdatebaselineMA1(rawSignal);
-			isAvgUpdate	= 1;
-		} else {
-			isAvgUpdate	= 0;
+			UpdateAvgMA1(rawSignal);
+			UpdateBaseline();
 		}
-	}
+	} else 
 
 	//Envelope_lo
 	if (operation==1) {
@@ -368,12 +431,10 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 
 		//update average, baseline
 		if (rawSignal>thres_lower) {
-			UpdatebaselineMA1(rawSignal);
-			isAvgUpdate	= 1;
-		} else {
-			isAvgUpdate	= 0;
+			UpdateAvgMA1(rawSignal);
+			UpdateBaseline();
 		}
-	}
+	} else 
 
 	if (operation==2) {
 		CalculateEnvelope_Up(rawSignal);
@@ -381,12 +442,11 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 
 		//update average, baseline
 		if ((rawSignal<thres_upper) && (rawSignal>thres_lower)){
-			UpdatebaselineMA1(rawSignal);
-			isAvgUpdate	= 1;
-		} else {
-			isAvgUpdate	= 0;
+			UpdateAvgMA1(rawSignal);
+			UpdateBaseline();
 		}
 	}
+
 }
 
 

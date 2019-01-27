@@ -1,16 +1,11 @@
 /*
   File:         SignalEnvelope.h
-  Version:      0.0.2
+  Version:      0.0.3
   Date:         19-Dec-2018
-  Revision:     19-Jan-2019
-  Author:       Jerome Drouin
+  Revision:     25-Jan-2019
+  Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
-  Editions:
-  - 0.0.1	: First version
-  - 0.0.2	: Added Operation mode for dual envelope functionality (and assoc. variables). 
-		  Added constructors for when thresholds and baseline are unknown at time of building.
-
-  SignalEnvelope.h v.01 - Library for 'duino
+  SignalEnvelope.h - Library for 'duino
   https://github.com/newEndeavour/SignalEnvelope
 
   The SignalEnvelope object implements an Envelope for Touch decoding 
@@ -38,6 +33,13 @@
   You should have received a copy of the GNU General Public License
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+  Editions:
+  - 0.0.1	: First version
+  - 0.0.2	: Added Operation mode for dual envelope functionality (and assoc. variables). 
+		  Added constructors for when thresholds and baseline are unknown at time of building.
+  - 0.0.3	: Implemented Auto Calibration methods
+		  Minor housekeeping.
+
 */
 
 
@@ -47,13 +49,13 @@
 
 #include "Arduino.h"
 
-
-#define MINSPEEDPARAM 		2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
-#define MAXSPEEDPARAM 	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
-#define SPEED_ATTENFACT      16.0	// Speed = 4, SPEED_ATTENFACT=2.0, Timedecay = 1 - 1 /(2.0 x 4) = 0.8750 (fast MA1)
-					// Speed = 4, SPEED_ATTENFACT=4.0, Timedecay = 1 - 1 /(4.0 x 4) = 0.9375 (medi MA1)
-					// Speed = 4, SPEED_ATTENFACT=8.0, Timedecay = 1 - 1 /(8.0 x 4) = 0.9687 (slow MA1)
-					// Speed = 4, SPEED_ATTENFACT=16., Timedecay = 1 - 1 /(16. x 4) = 0.9843 (slug MA1)
+#define INITIAL_AUTOCAL_FREQ	    10000	// Autocalibration Frequency 10 secs
+#define MINSPEEDPARAM 			2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
+#define MAXSPEEDPARAM 	      	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
+#define SPEED_ATTENFACT      	     16.0	// Speed = 4, SPEED_ATTENFACT=2.0, Timedecay = 1 - 1 /(2.0 x 4) = 0.8750 (fast MA1)
+						// Speed = 4, SPEED_ATTENFACT=4.0, Timedecay = 1 - 1 /(4.0 x 4) = 0.9375 (medi MA1)
+						// Speed = 4, SPEED_ATTENFACT=8.0, Timedecay = 1 - 1 /(8.0 x 4) = 0.9687 (slow MA1)
+						// Speed = 4, SPEED_ATTENFACT=16., Timedecay = 1 - 1 /(16. x 4) = 0.9843 (slug MA1)
 
 // library interface description
 class SignalEnvelope
@@ -66,6 +68,7 @@ class SignalEnvelope
 	SignalEnvelope(uint8_t _speed, int _operation, float _baseline, float _thres_upper, float _thres_lower);
 
 	int 	GetisAvgUpdate(void);
+	int 	GetisBaselineUpdate(void);
 
 	float 	Envelope(float rawSignal);			//Update and return the default envelope level 
 								//if operation 0=Rising, 1=Falling
@@ -88,16 +91,23 @@ class SignalEnvelope
 	float 	GetBaseline(void);				//Get the Baseline level
 	float 	GetTimedecay(void);				//Get the Timedecay factor 
 
+	void 	Reset_AutoCal();				// Reset Autocal_Millis
+	void 	Disable_AutoCal();				// Stops Baseline update. To Return to baseline update use 
+								// Set_Autocal_Millis(x) where x>0
+	void 	Set_Autocal_Millis(unsigned long autoCal_millis);
 
   // library-accessible "private" interface
   private:
   // variables
+
 	int 		error;
+	int 		isAvgUpdate;
+	int		isBaselineUpdate;
+
+	unsigned long  	Autocal_Millis;
+	unsigned long  	lastCal;
 
 	int 		operation;				//0=Upper, 1=Lower, 2=Double
-
-	int 		isAvgUpdate;
-
 	uint8_t		speed;
 
 	float 		thres_upper; 
@@ -113,7 +123,8 @@ class SignalEnvelope
 	void 	CalculateEnvelope(float rawSignal);
 	void 	CalculateEnvelope_Up(float rawSignal);
 	void 	CalculateEnvelope_Lo(float rawSignal);
-	void 	UpdatebaselineMA1(float rawSignal);
+	void 	UpdateAvgMA1(float rawSignal);
+	void 	UpdateBaseline();
 
 };
 

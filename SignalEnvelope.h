@@ -15,7 +15,7 @@
   Sensor is pressed. 
 
   Also see: 
-  - http://ww1.microchip.com/downloads/en/appnotes/00001334b.pdf,p25.
+  - http://ww1.microchip.com/downloads/en/appnotes/00001334b.pdf, p25.
   - http://ww1.microchip.com/downloads/en/appnotes/01317a.pdf, p11.
 
   Copyright (c) 2019 Jerome Drouin  All rights reserved.

@@ -6,5 +6,5 @@ Also see:
   - http://ww1.microchip.com/downloads/en/appnotes/00001334b.pdf, p25.
   - http://ww1.microchip.com/downloads/en/appnotes/01317a.pdf, p11.
 
-SignalEnvelope was originally written by Jerome Drouin and is now maintained by Jerome Drouin.
+SignalEnvelope was originally written by Jerome Drouin and is maintained by Jerome Drouin.
 

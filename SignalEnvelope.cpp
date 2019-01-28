@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.cpp
-  Version:      0.0.3
+  Version:      0.0.4
   Date:         19-Dec-2018
-  Revision:     25-Jan-2019
+  Revision:     28-Jan-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   Editions:	Please go to SignalEnvelope.h for Edition Notes.
@@ -336,7 +336,10 @@ void SignalEnvelope::Set_Autocal_Millis(unsigned long _autocal_Millis)
 }
 
 
+
+
 // Private Methods /////////////////////////////////////////////////////////////
+
 // Functions only available to other functions in this library
 // Update Up Envelope
 void SignalEnvelope::CalculateEnvelope_Up(float rawSignal)
@@ -345,6 +348,8 @@ float decay;
 
 	decay  	= (envelope_up - rawSignal) / speed;
 
+	/* 
+	// PREVIOUS VERSION
 	// Update envelope_up
 	if (rawSignal>baseline) {
 		if (rawSignal>envelope_up) {
@@ -356,6 +361,17 @@ float decay;
 		//temporary
 		envelope_up = baseline;
 	} 
+	*/
+
+	// Update envelope_up
+	if (rawSignal>envelope_up) {
+		envelope_up = rawSignal;		// Attack
+	} else {
+		envelope_up -= decay;	 		// Decay
+		if (envelope_up<baseline) 		// Boundary condition
+			envelope_up = baseline;
+	}
+
 }
 
 
@@ -366,6 +382,8 @@ float decay;
 
 	decay  	= (rawSignal - envelope_lo) / speed;
 
+	/*
+	// PREVIOUS VERSION
 	// Update envelope_lo
 	if (rawSignal<baseline) {
 		if (rawSignal<envelope_lo) {
@@ -377,6 +395,17 @@ float decay;
 		//temporary
 		envelope_lo = baseline;
 	} 
+	*/
+
+	// Update envelope_lo
+	if (rawSignal<envelope_lo) {
+		envelope_lo = rawSignal;		// Attack
+	} else {
+		envelope_lo += decay;	 		// Decay
+		if (envelope_lo>baseline) 		// Boundary condition
+			envelope_lo = baseline;
+	}
+
 }
 
 

@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.h
-  Version:      0.0.3
+  Version:      0.0.4
   Date:         19-Dec-2018
-  Revision:     25-Jan-2019
+  Revision:     28-Jan-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   SignalEnvelope.h - Library for 'duino
@@ -39,6 +39,13 @@
 		  Added constructors for when thresholds and baseline are unknown at time of building.
   - 0.0.3	: Implemented Auto Calibration methods
 		  Minor housekeeping.
+  - 0.0.4	: Changed the way the Enveope signal reverts back to Baseline. Previously, Envelope was set
+		  equal to the baseline when the RawSignal was below the threshold. In this new version, the 
+		  Envelope keeps decaying back at its set speed (decay) and is only set = to baseline 
+	  	  when the calculation falls under the baseline. this is to avoid a situation in Operation mode
+		  "double" (=2), when the envelope could potentially cross. (Code of the previous version is still 
+		  in place for those who liked it better).
+  
 
 */
 
@@ -49,7 +56,7 @@
 
 #include "Arduino.h"
 
-#define INITIAL_AUTOCAL_FREQ	    10000	// Autocalibration Frequency 10 secs
+#define INITIAL_AUTOCAL_FREQ	     5000	// Autocalibration Frequency 5 secs
 #define MINSPEEDPARAM 			2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
 #define MAXSPEEDPARAM 	      	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
 #define SPEED_ATTENFACT      	     16.0	// Speed = 4, SPEED_ATTENFACT=2.0, Timedecay = 1 - 1 /(2.0 x 4) = 0.8750 (fast MA1)

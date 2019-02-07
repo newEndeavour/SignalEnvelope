@@ -56,10 +56,10 @@
 
 #include "Arduino.h"
 
-#define INITIAL_AUTOCAL_FREQ	     5000	// Autocalibration Frequency 5 secs
+#define INITIAL_AUTOCAL_FREQ	     1000	// Autocalibration Frequency 5 secs
 #define MINSPEEDPARAM 			2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
 #define MAXSPEEDPARAM 	      	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
-#define SPEED_ATTENFACT      	     16.0	// Speed = 4, SPEED_ATTENFACT=2.0, Timedecay = 1 - 1 /(2.0 x 4) = 0.8750 (fast MA1)
+#define SPEED_ATTENFACT      	      8.0	// Speed = 4, SPEED_ATTENFACT=2.0, Timedecay = 1 - 1 /(2.0 x 4) = 0.8750 (fast MA1)
 						// Speed = 4, SPEED_ATTENFACT=4.0, Timedecay = 1 - 1 /(4.0 x 4) = 0.9375 (medi MA1)
 						// Speed = 4, SPEED_ATTENFACT=8.0, Timedecay = 1 - 1 /(8.0 x 4) = 0.9687 (slow MA1)
 						// Speed = 4, SPEED_ATTENFACT=16., Timedecay = 1 - 1 /(16. x 4) = 0.9843 (slug MA1)
@@ -89,19 +89,25 @@ class SignalEnvelope
 
 	void 	SetThres_Upper(float _thres_upper);		//Set threshold
 	void 	SetThres_Lower(float _thres_lower);		//Set threshold
+	float 	GetThres_Upper(void);				//Get the thres_upper level
+	float 	GetThres_Lower(void);				//Get the thres_lower level
 
-	void 	SetBaseline(float _baseline);			//Set the baseline
+	void 	SetEnvelope(float _envelope);			//Set the envelope level to specific value
 	void 	SetEnvelope_Upper(float _envelope);		//Set the Upper envelope level to specific value
 	void 	SetEnvelope_Lower(float _envelope);		//Set the Lower envelope level to specific value
-	void 	SetEnvelope(float _envelope);			//Set the envelope level to specific value
 
+	void 	SetBaseline(float _baseline);			//Set the baseline
 	float 	GetBaseline(void);				//Get the Baseline level
+
 	float 	GetTimedecay(void);				//Get the Timedecay factor 
+	float 	GetAvgMA1(void);				//Get the avgma1 level
 
 	void 	Reset_AutoCal();				// Reset Autocal_Millis
 	void 	Disable_AutoCal();				// Stops Baseline update. To Return to baseline update use 
 								// Set_Autocal_Millis(x) where x>0
+
 	void 	Set_Autocal_Millis(unsigned long autoCal_millis);
+	unsigned long Get_Autocal_Millis(void);
 
   // library-accessible "private" interface
   private:

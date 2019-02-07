@@ -213,6 +213,7 @@ float SignalEnvelope::GetEnvelope(void)
 }
 
 
+
 //Get the requested envelope level
 float SignalEnvelope::GetEnvelope(int returntype)
 {
@@ -280,6 +281,20 @@ void SignalEnvelope::SetThres_Lower(float _thres_lower)
 }
 
 
+//Get Upper press threshold
+float SignalEnvelope::GetThres_Upper(void)
+{
+	return thres_upper;
+}
+
+
+//Get Lower press threshold
+float SignalEnvelope::GetThres_Lower(void)
+{
+	return thres_lower;
+}
+
+
 //Set the baseline
 void SignalEnvelope::SetBaseline(float _baseline)
 {
@@ -302,10 +317,33 @@ void SignalEnvelope::SetEnvelope_Lower(float _envelope)
 }
 
 
+//Sets the default envelope level
+void SignalEnvelope::SetEnvelope(float _envelope)
+{
+
+	//Setting upper or lower
+	if (operation==0) {
+		envelope_up	= _envelope;	
+	} 
+	else 
+	if (operation==1) {
+		envelope_lo	= _envelope;	
+	}
+ 
+}
+
+
 //Get the Baseline level
 float SignalEnvelope::GetBaseline(void)
 {
 	return baseline;	
+}
+
+
+//Get the avgma1 level
+float SignalEnvelope::GetAvgMA1(void)
+{
+	return avgma1;	
 }
 
 
@@ -336,6 +374,11 @@ void SignalEnvelope::Set_Autocal_Millis(unsigned long _autocal_Millis)
 }
 
 
+//Get the Autocal frequency parameter
+unsigned long SignalEnvelope::Get_Autocal_Millis(void) 
+{
+	return Autocal_Millis;
+}
 
 
 // Private Methods /////////////////////////////////////////////////////////////
@@ -349,7 +392,7 @@ float decay;
 	decay  	= (envelope_up - rawSignal) / speed;
 
 	/* 
-	// PREVIOUS VERSION
+	// ---- PREVIOUS VERSION ---------------------------------------------
 	// Update envelope_up
 	if (rawSignal>baseline) {
 		if (rawSignal>envelope_up) {
@@ -361,6 +404,7 @@ float decay;
 		//temporary
 		envelope_up = baseline;
 	} 
+	// -------------------------------------------------------------------
 	*/
 
 	// Update envelope_up
@@ -383,7 +427,7 @@ float decay;
 	decay  	= (rawSignal - envelope_lo) / speed;
 
 	/*
-	// PREVIOUS VERSION
+	// ---- PREVIOUS VERSION ---------------------------------------------
 	// Update envelope_lo
 	if (rawSignal<baseline) {
 		if (rawSignal<envelope_lo) {
@@ -395,6 +439,7 @@ float decay;
 		//temporary
 		envelope_lo = baseline;
 	} 
+	// -------------------------------------------------------------------
 	*/
 
 	// Update envelope_lo
@@ -451,6 +496,9 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 		if (rawSignal<thres_upper) {
 			UpdateAvgMA1(rawSignal);
 			UpdateBaseline();
+		} else {
+			isBaselineUpdate = 0;
+			isAvgUpdate	 = 0;	
 		}
 	} else 
 
@@ -462,6 +510,9 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 		if (rawSignal>thres_lower) {
 			UpdateAvgMA1(rawSignal);
 			UpdateBaseline();
+		} else {
+			isBaselineUpdate = 0;
+			isAvgUpdate	 = 0;	
 		}
 	} else 
 
@@ -473,6 +524,9 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 		if ((rawSignal<thres_upper) && (rawSignal>thres_lower)){
 			UpdateAvgMA1(rawSignal);
 			UpdateBaseline();
+		} else {
+			isBaselineUpdate = 0;
+			isAvgUpdate	 = 0;	
 		}
 	}
 

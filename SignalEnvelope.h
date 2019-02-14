@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.h
-  Version:      0.0.4
+  Version:      0.0.5
   Date:         19-Dec-2018
-  Revision:     28-Jan-2019
+  Revision:     14-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   SignalEnvelope.h - Library for 'duino
@@ -39,12 +39,14 @@
 		  Added constructors for when thresholds and baseline are unknown at time of building.
   - 0.0.3	: Implemented Auto Calibration methods
 		  Minor housekeeping.
-  - 0.0.4	: Changed the way the Enveope signal reverts back to Baseline. Previously, Envelope was set
+  - 0.0.4	: Changed the way the Envelope signal reverts back to Baseline. Previously, Envelope was set
 		  equal to the baseline when the RawSignal was below the threshold. In this new version, the 
 		  Envelope keeps decaying back at its set speed (decay) and is only set = to baseline 
 	  	  when the calculation falls under the baseline. this is to avoid a situation in Operation mode
 		  "double" (=2), when the envelope could potentially cross. (Code of the previous version is still 
 		  in place for those who liked it better).
+  - 0.0.5	: Additional Moments : mean, variance, stddev for baseline and supporting methods.
+		  Better Error handling methodology
   
 
 */
@@ -74,7 +76,7 @@ class SignalEnvelope
 	SignalEnvelope(uint8_t _speed, int _operation, float _baseline);
 	SignalEnvelope(uint8_t _speed, int _operation, float _baseline, float _thres_upper, float _thres_lower);
 
-	int 	GetisAvgUpdate(void);
+	int 	GetisMomentsUpdate(void);
 	int 	GetisBaselineUpdate(void);
 
 	float 	Envelope(float rawSignal);			//Update and return the default envelope level 
@@ -99,8 +101,14 @@ class SignalEnvelope
 	void 	SetBaseline(float _baseline);			//Set the baseline
 	float 	GetBaseline(void);				//Get the Baseline level
 
-	float 	GetTimedecay(void);				//Get the Timedecay factor 
-	float 	GetAvgMA1(void);				//Get the avgma1 level
+	float 	GetTimedecay(void);				//Get the Timedecay factor
+	float 	GetSpeed(void);					//Get the Speed factor
+
+	float 	GetRawSignal_xi(void);				//Get the GetRawSignal_xi level
+	float 	GetRawSignal_xi2(void);				//Get the GetRawSignal_xi2 level
+	float 	GetRawSignal_Mean(void);			//Get the GetRawSignal_mean level
+	float 	GetRawSignal_Variance(void);			//Get the GetRawSignal_var level
+	float 	GetRawSignal_StDeviation(void);			//Get the GetRawSignal_stdev level
 
 	void 	Reset_AutoCal();				// Reset Autocal_Millis
 	void 	Disable_AutoCal();				// Stops Baseline update. To Return to baseline update use 
@@ -114,7 +122,7 @@ class SignalEnvelope
   // variables
 
 	int 		error;
-	int 		isAvgUpdate;
+	int 		isMomentsUpdate;
 	int		isBaselineUpdate;
 
 	unsigned long  	Autocal_Millis;
@@ -129,15 +137,23 @@ class SignalEnvelope
 	float		timedecay;
 	float 		envelope_up;
 	float 		envelope_lo;
-	float		avgma1; 
 	float 		baseline;
 	
+	float		raw_xi; 
+	float		raw_xi2; 
+	float		raw_mean; 
+	float		raw_var; 
+	float		raw_stdev; 
+
   // methods
 	void 	CalculateEnvelope(float rawSignal);
 	void 	CalculateEnvelope_Up(float rawSignal);
 	void 	CalculateEnvelope_Lo(float rawSignal);
-	void 	UpdateAvgMA1(float rawSignal);
-	void 	UpdateBaseline();
+
+	void 	Update_RawSignal_Moments(float rawSignal);
+	void 	UpdateBaseline(float rawSignal);
+
+	void 	ResetErrors(void);	// Error flag handling
 
 };
 

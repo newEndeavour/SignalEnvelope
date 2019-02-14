@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.cpp
-  Version:      0.0.4
+  Version:      0.0.5
   Date:         19-Dec-2018
-  Revision:     28-Jan-2019
+  Revision:     14-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   Editions:	Please go to SignalEnvelope.h for Edition Notes.
@@ -46,20 +46,13 @@
 // Function that handles the creation and setup of instances
 SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 {
-	// initialize this instance's variables
-	error = 1;
-	if (_speed<MINSPEEDPARAM) 	error =-1;		// incorrect speed variable
-	if (_speed>MAXSPEEDPARAM) 	error =-2;		// incorrect speed variable
-	if ((_operation!=0) 
-		&& (_operation!=1) 
-		&& (_operation!=2))	error =-4;		// incorrect operation
 
 	//Auto Calibration of Baseline
 	Autocal_Millis 		= INITIAL_AUTOCAL_FREQ;			
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for avgma1 = baseline
+	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
 
 	thres_upper		= 0.0;				// Set to 0 :no baseline update possible
 	thres_lower		= 0.0;				// Set to 0 :no baseline update possible
@@ -67,33 +60,34 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 	operation		= _operation;			//0=Upper, 1=Lower, 2=Double
 
 	baseline		= 0.0;
-	avgma1			= 0.0;
 	envelope_up		= 0.0;
 	envelope_lo		= 0.0;
 
-	isAvgUpdate		= 0;
+	raw_xi			= 0;
+	raw_xi2			= 0;
+	raw_mean		= raw_xi;
+	raw_var			= raw_xi2 - (raw_xi * raw_xi);
+	raw_stdev		= sqrt(raw_var);
+
+	isMomentsUpdate		= 0;
 	isBaselineUpdate 	= 0;
 
 	lastCal 		= millis();         		// set millis for start
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
 SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
 {
-	// initialize this instance's variables
-	error = 1;
-	if (_speed<MINSPEEDPARAM) 	error =-1;		// incorrect speed variable
-	if (_speed>MAXSPEEDPARAM) 	error =-2;		// incorrect speed variable
-	if ((_operation!=0) 
-		&& (_operation!=1) 
-		&& (_operation!=2))	error =-4;		// incorrect operation
 
 	//Auto Calibration of Baseline
 	Autocal_Millis 		= INITIAL_AUTOCAL_FREQ;
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for avgma1 = baseline
+	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
 
 	thres_upper		= 0.0;				// Set to 0 :no baseline update possible
 	thres_lower		= 0.0;				// Set to 0 :no baseline update possible
@@ -101,36 +95,34 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
 	operation		= _operation;			//0=Upper, 1=Lower, 2=Double
 
 	baseline		= _baseline;
-	avgma1			= _baseline;
 	envelope_up		= _baseline;
 	envelope_lo		= _baseline;
 
-	isAvgUpdate		= 0;
+	raw_xi			= _baseline;
+	raw_xi2			= _baseline * _baseline;
+	raw_mean		= raw_xi;
+	raw_var			= raw_xi2 - (raw_xi * raw_xi);
+	raw_stdev		= sqrt(raw_var);
+
+	isMomentsUpdate		= 0;
 	isBaselineUpdate 	= 0;
 
 	lastCal 		= millis();         		// set millis for start
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
 SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, float _thres_upper, float _thres_lower)
 {
-	// initialize this instance's variables
-	error = 1;
-	if (_speed<MINSPEEDPARAM) 	error =-1;		// incorrect speed variable
-	if (_speed>MAXSPEEDPARAM) 	error =-2;		// incorrect speed variable
-	if (_thres_upper<0) 		error =-3;		// incorrect press threshold level
-	if (_thres_lower<0) 		error =-3;		// incorrect press threshold level
-	if ((_operation!=0) 
-		&& (_operation!=1) 
-		&& (_operation!=2))	error =-4;		// incorrect operation
-	
 
 	//Auto Calibration of Baseline
 	Autocal_Millis 		= INITIAL_AUTOCAL_FREQ;
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for avgma1 = baseline
+	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
 
 	thres_upper		= _thres_upper;
 	thres_lower		= _thres_lower;
@@ -138,14 +130,22 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, 
 	operation		= _operation;			//0=Upper, 1=Lower, 2=Double
 
 	baseline		= _baseline;
-	avgma1			= _baseline;
 	envelope_up		= _baseline;
 	envelope_lo		= _baseline;
 
-	isAvgUpdate		= 0;
+	raw_xi			= _baseline;
+	raw_xi2			= _baseline * _baseline;
+	raw_mean		= raw_xi;
+	raw_var			= raw_xi2 - (raw_xi * raw_xi);
+	raw_stdev		= sqrt(raw_var);
+
+	isMomentsUpdate		= 0;
 	isBaselineUpdate 	= 0;
 	
 	lastCal 		= millis();         		// set millis for start
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -154,8 +154,8 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, 
 // Update envelope level with default available envelope level
 float SignalEnvelope::Envelope(float rawSignal)
 {
-	//if error
-	if (error<0)	return error;
+
+	if (error < 0) return error;            // bad constructor variables
 
 	CalculateEnvelope(rawSignal);
 	
@@ -175,8 +175,7 @@ float SignalEnvelope::Envelope(float rawSignal)
 float SignalEnvelope::Envelope(float rawSignal, int returntype)
 {
 
-	//if error
-	if (error<0)	return error;
+	if (error < 0) return error;            // bad constructor variables
 
 	CalculateEnvelope(rawSignal);
 	
@@ -197,8 +196,7 @@ float SignalEnvelope::Envelope(float rawSignal, int returntype)
 float SignalEnvelope::GetEnvelope(void)
 {
 
-	//if error
-	if (error<0)	return error;
+	if (error < 0) return error;            // bad constructor variables
 
 	//Returning upper or lower
 	if (operation==0) {
@@ -218,8 +216,7 @@ float SignalEnvelope::GetEnvelope(void)
 float SignalEnvelope::GetEnvelope(int returntype)
 {
 
-	//if error
-	if (error<0)	return error;
+	if (error < 0) return error;            // bad constructor variables
 
 	//Returning upper or lower
 	if (returntype==0) {
@@ -233,10 +230,10 @@ float SignalEnvelope::GetEnvelope(int returntype)
 }
 
 
-//Returns isAvgUpdate
-int SignalEnvelope::GetisAvgUpdate(void)
+//Returns isMomentsUpdate
+int SignalEnvelope::GetisMomentsUpdate(void)
 {
-	return isAvgUpdate;
+	return isMomentsUpdate;
 }
 
 
@@ -250,34 +247,37 @@ int SignalEnvelope::GetisBaselineUpdate(void)
 //Set the envelope speed
 void SignalEnvelope::SetSpeed(uint8_t _speed)
 {
-	if (_speed<MINSPEEDPARAM) 	error =-1;		// incorrect speed variable
-	if (_speed>MAXSPEEDPARAM) 	error =-2;		// incorrect speed variable
 
 	//Set initial values	
 	speed				= _speed;		// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay			= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for avgma1 = baseline
+	timedecay			= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
 //Set Upper press threshold
 void SignalEnvelope::SetThres_Upper(float _thres_upper)
 {
-	//error
-	if (_thres_upper<0) error =-3;
 
 	//set parameter
 	thres_upper	= _thres_upper;
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
 //Set Lower press threshold
 void SignalEnvelope::SetThres_Lower(float _thres_lower)
 {
-	//error
-	if (_thres_lower<0) error =-3;
 
 	//set parameter
 	thres_lower	= _thres_lower;
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -299,7 +299,9 @@ float SignalEnvelope::GetThres_Lower(void)
 void SignalEnvelope::SetBaseline(float _baseline)
 {
 	baseline		= _baseline;
-	avgma1			= _baseline;	
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -307,6 +309,9 @@ void SignalEnvelope::SetBaseline(float _baseline)
 void SignalEnvelope::SetEnvelope_Upper(float _envelope)
 {
 	envelope_up		= _envelope;	
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -314,6 +319,9 @@ void SignalEnvelope::SetEnvelope_Upper(float _envelope)
 void SignalEnvelope::SetEnvelope_Lower(float _envelope)
 {
 	envelope_lo		= _envelope;	
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -330,6 +338,8 @@ void SignalEnvelope::SetEnvelope(float _envelope)
 		envelope_lo	= _envelope;	
 	}
  
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -340,10 +350,38 @@ float SignalEnvelope::GetBaseline(void)
 }
 
 
-//Get the avgma1 level
-float SignalEnvelope::GetAvgMA1(void)
+//Get the raw_xi level
+float SignalEnvelope::GetRawSignal_xi(void)
 {
-	return avgma1;	
+	return raw_xi;	
+}
+
+
+//Get the raw_xi2 level
+float SignalEnvelope::GetRawSignal_xi2(void)
+{
+	return raw_xi2;	
+}
+
+
+//Get the raw_mean level
+float SignalEnvelope::GetRawSignal_Mean(void)
+{
+	return raw_mean;	
+}
+
+
+//Get the raw_var level
+float SignalEnvelope::GetRawSignal_Variance(void)
+{
+	return raw_var;	
+}
+
+
+//Get the raw_stdev level
+float SignalEnvelope::GetRawSignal_StDeviation(void)
+{
+	return raw_stdev;	
 }
 
 
@@ -351,6 +389,13 @@ float SignalEnvelope::GetAvgMA1(void)
 float SignalEnvelope::GetTimedecay(void)
 {
 	return timedecay;	
+}
+
+
+//Get the speed parameter
+float SignalEnvelope::GetSpeed(void)
+{
+	return speed;	
 }
 
 
@@ -371,6 +416,9 @@ void SignalEnvelope::Reset_AutoCal(void)
 void SignalEnvelope::Set_Autocal_Millis(unsigned long _autocal_Millis)
 {
 	Autocal_Millis = _autocal_Millis;
+
+	// Object parameter's error handling
+	ResetErrors();
 }
 
 
@@ -454,13 +502,23 @@ float decay;
 }
 
 
-// Update Average MA1
-void SignalEnvelope::UpdateAvgMA1(float rawSignal)
+
+// Update MA1 Moments
+void SignalEnvelope::Update_RawSignal_Moments(float rawSignal)
 {
-	//avgma1 = MA(1) with timedecay factor = f(speed)
-	avgma1		= timedecay * avgma1 + (1 - timedecay) * rawSignal;
-	isAvgUpdate	= 1;
+	//raw_mean = MA(1) with timedecay factor = f(speed)
+
+	raw_xi		= timedecay * raw_xi + (1 - timedecay) * rawSignal;
+	raw_xi2		= timedecay * raw_xi2 + (1 - timedecay) * (rawSignal*rawSignal);
+	
+	raw_mean	= raw_xi;			// mean
+	raw_var		= raw_xi2 - (raw_xi * raw_xi);	// variance
+	raw_stdev	= sqrt(raw_var);		// std deviation
+	
+	isMomentsUpdate	= 1;
+
 }
+
 
 
 // Update Baseline 
@@ -469,51 +527,44 @@ void SignalEnvelope::UpdateAvgMA1(float rawSignal)
 // 	only calibrate if time since last calibration is greater than Autocal_Millis 
 // 	and rawSignal is inside thres range. 
 // 	This is an attempt to keep from calibrating when the envelope threshold is being crossed.
-void SignalEnvelope::UpdateBaseline()
+void SignalEnvelope::UpdateBaseline(float rawSignal)
 {
 long now = millis();
 
+	isBaselineUpdate = 0;
+	Update_RawSignal_Moments(rawSignal);
+
 	if (now - lastCal > Autocal_Millis) {
-		baseline = avgma1;
+		baseline = raw_mean;
 		lastCal  = now;
 		isBaselineUpdate = 1;
-	} else {
-		isBaselineUpdate = 0;
-	}
+	} 
 }
 
 
 // Calculates Envelope
 void SignalEnvelope::CalculateEnvelope(float rawSignal)
 {
-	isAvgUpdate	= 0;
+	isMomentsUpdate	 = 0;
+	isBaselineUpdate = 0;
 
 	//Envelope_up
 	if (operation==0) {
 		CalculateEnvelope_Up(rawSignal);
 
 		//update average, baseline
-		if (rawSignal<thres_upper) {
-			UpdateAvgMA1(rawSignal);
-			UpdateBaseline();
-		} else {
-			isBaselineUpdate = 0;
-			isAvgUpdate	 = 0;	
-		}
+		if (rawSignal<thres_upper)
+			UpdateBaseline(rawSignal);
 	} else 
+
 
 	//Envelope_lo
 	if (operation==1) {
 		CalculateEnvelope_Lo(rawSignal);
 
 		//update average, baseline
-		if (rawSignal>thres_lower) {
-			UpdateAvgMA1(rawSignal);
-			UpdateBaseline();
-		} else {
-			isBaselineUpdate = 0;
-			isAvgUpdate	 = 0;	
-		}
+		if (rawSignal>thres_lower)
+			UpdateBaseline(rawSignal);
 	} else 
 
 	if (operation==2) {
@@ -521,16 +572,42 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 		CalculateEnvelope_Lo(rawSignal);
 
 		//update average, baseline
-		if ((rawSignal<thres_upper) && (rawSignal>thres_lower)){
-			UpdateAvgMA1(rawSignal);
-			UpdateBaseline();
-		} else {
-			isBaselineUpdate = 0;
-			isAvgUpdate	 = 0;	
-		}
+		if ((rawSignal<thres_upper) && (rawSignal>thres_lower))
+			UpdateBaseline(rawSignal);
 	}
 
 }
+
+
+//Reset error flag following importance hierarchy
+//by increasing error importance:
+//	- Operation	: -3
+//	- Speed		: -2
+//	- Thres values	: -1	(most important)
+//	Note: Object instanciated with incorrect Operation mode and incorrect threshold value
+//	will return -2 (first), and then -4 only after theshold conflict has been resolved.
+//	
+void SignalEnvelope::ResetErrors(void) 
+{
+
+	// Object parameter's error handling
+	error = 1;
+
+	if ((operation!=0) 
+	 && (operation!=1)
+	 && (operation!=2)) 			error =-4;	// incorrect _operation mode
+
+	if (speed<MINSPEEDPARAM) 		error =-3;	// incorrect speed variable
+	if (speed>MAXSPEEDPARAM) 		error =-3;	// incorrect speed variable
+
+	if (thres_upper<0) 			error =-2;	// incorrect threshold level
+	if (thres_lower<0) 			error =-2;	// incorrect threshold level
+
+	if (baseline<0) 			error =-1;	// incorrect baseline level
+	
+
+}
+
 
 
 // /////////////////////////////////////////////////////////////////////////////

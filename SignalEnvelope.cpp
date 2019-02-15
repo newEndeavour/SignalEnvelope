@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.cpp
-  Version:      0.0.5
+  Version:      0.0.6
   Date:         19-Dec-2018
-  Revision:     14-Feb-2019
+  Revision:     15-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   Editions:	Please go to SignalEnvelope.h for Edition Notes.
@@ -44,7 +44,7 @@
 
 // Constructor /////////////////////////////////////////////////////////////////
 // Function that handles the creation and setup of instances
-SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
+SignalEnvelope::SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation)
 {
 
 	//Auto Calibration of Baseline
@@ -52,7 +52,7 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
+	ma1decay		= _ma1decay;			// Time decay factor for moments => baseline
 
 	thres_upper		= 0.0;				// Set to 0 :no baseline update possible
 	thres_lower		= 0.0;				// Set to 0 :no baseline update possible
@@ -79,7 +79,7 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 }
 
 
-SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
+SignalEnvelope::SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation, float _baseline)
 {
 
 	//Auto Calibration of Baseline
@@ -87,7 +87,7 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
+	ma1decay		= _ma1decay;			// Time decay factor for moments => baseline
 
 	thres_upper		= 0.0;				// Set to 0 :no baseline update possible
 	thres_lower		= 0.0;				// Set to 0 :no baseline update possible
@@ -114,7 +114,7 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline)
 }
 
 
-SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, float _thres_upper, float _thres_lower)
+SignalEnvelope::SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation, float _baseline, float _thres_upper, float _thres_lower)
 {
 
 	//Auto Calibration of Baseline
@@ -122,7 +122,7 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _baseline, 
 
 	//Set initial values	
 	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay		= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
+	ma1decay		= _ma1decay;			// Time decay factor for moments => baseline
 
 	thres_upper		= _thres_upper;
 	thres_lower		= _thres_lower;
@@ -249,8 +249,19 @@ void SignalEnvelope::SetSpeed(uint8_t _speed)
 {
 
 	//Set initial values	
-	speed				= _speed;		// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
-	timedecay			= (float) 1 - (1 / (speed * SPEED_ATTENFACT));// Time decay factor for raw_mean = baseline
+	speed				= _speed;	// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+
+	// Object parameter's error handling
+	ResetErrors();
+}
+
+
+//Set the moment decay
+void SignalEnvelope::SetMa1decay(float _ma1decay)
+{
+
+	//Set initial values	
+	ma1decay			= _ma1decay;	// Moments decay factor
 
 	// Object parameter's error handling
 	ResetErrors();
@@ -296,13 +307,20 @@ float SignalEnvelope::GetThres_Lower(void)
 
 
 //Set the baseline
-void SignalEnvelope::SetBaseline(float _baseline)
+void SignalEnvelope::SetBaseline(float _baseline, int preserve)
 {
 	baseline		= _baseline;
 
-	//Reset Moments
-	raw_xi			= _baseline;
-	raw_xi2			= _baseline * _baseline;
+	if (preserve) {
+		//Update & Preserve Moments
+		raw_xi			= ma1decay * raw_xi + (1 - ma1decay) * _baseline;
+		raw_xi2			= ma1decay * raw_xi2 + (1 - ma1decay) * (_baseline*_baseline);
+	} else {
+		//Reset Moments
+		raw_xi			= _baseline;
+		raw_xi2			= _baseline * _baseline;
+	}
+
 	raw_mean		= raw_xi;
 	raw_var			= raw_xi2 - (raw_xi * raw_xi);
 	raw_stdev		= sqrt(raw_var);
@@ -392,10 +410,10 @@ float SignalEnvelope::GetRawSignal_StDeviation(void)
 }
 
 
-//Get the timedecay factor implied from speed
-float SignalEnvelope::GetTimedecay(void)
+//Get the ma1decay factor
+float SignalEnvelope::GetMa1decay(void)
 {
-	return timedecay;	
+	return ma1decay;	
 }
 
 
@@ -513,10 +531,10 @@ float decay;
 // Update MA1 Moments
 void SignalEnvelope::Update_RawSignal_Moments(float rawSignal)
 {
-	//raw_mean = MA(1) with timedecay factor = f(speed)
+	//raw_mean = MA(1) with ma1decay factor
 
-	raw_xi		= timedecay * raw_xi + (1 - timedecay) * rawSignal;
-	raw_xi2		= timedecay * raw_xi2 + (1 - timedecay) * (rawSignal*rawSignal);
+	raw_xi		= ma1decay * raw_xi + (1 - ma1decay) * rawSignal;
+	raw_xi2		= ma1decay * raw_xi2 + (1 - ma1decay) * (rawSignal*rawSignal);
 	
 	raw_mean	= raw_xi;			// mean
 	raw_var		= raw_xi2 - (raw_xi * raw_xi);	// variance
@@ -588,9 +606,11 @@ void SignalEnvelope::CalculateEnvelope(float rawSignal)
 
 //Reset error flag following importance hierarchy
 //by increasing error importance:
-//	- Operation	: -3
-//	- Speed		: -2
-//	- Thres values	: -1	(most important)
+//	- Operation	: -5
+//	- Speed		: -4
+//	- ma1decay	: -3
+//	- Thres values	: -2	
+//	- Baseline	: -1 (most important)
 //	Note: Object instanciated with incorrect Operation mode and incorrect threshold value
 //	will return -2 (first), and then -4 only after theshold conflict has been resolved.
 //	
@@ -602,10 +622,13 @@ void SignalEnvelope::ResetErrors(void)
 
 	if ((operation!=0) 
 	 && (operation!=1)
-	 && (operation!=2)) 			error =-4;	// incorrect _operation mode
+	 && (operation!=2)) 			error =-5;	// incorrect _operation mode
 
-	if (speed<MINSPEEDPARAM) 		error =-3;	// incorrect speed variable
-	if (speed>MAXSPEEDPARAM) 		error =-3;	// incorrect speed variable
+	if (speed<MINSPEEDPARAM) 		error =-4;	// incorrect speed variable
+	if (speed>MAXSPEEDPARAM) 		error =-4;	// incorrect speed variable
+
+	if (ma1decay<=MINMA1DECAYPARAM) 	error =-3;	// incorrect ma1decay variable
+	if (ma1decay>=MAXMA1DECAYPARAM) 	error =-3;	// incorrect ma1decay variable
 
 	if (thres_upper<0) 			error =-2;	// incorrect threshold level
 	if (thres_lower<0) 			error =-2;	// incorrect threshold level

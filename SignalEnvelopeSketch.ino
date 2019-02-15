@@ -36,19 +36,24 @@ float Amplitude;
 float MaxAmpl = 10;
 float CentralPoint = 100;
 float Angle;
+float lambda = 0.90;
 float RawSignal;
+float RawSignal_MA1 = 0;
+
 int Switch = 1;
 int LoopCount = 0;
 
-//---- Envelope object ----------------------------------------------------
+//---- Envelope objects ----------------------------------------------------
 #define ENV1_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
 #define ENV1_DECAY_SPEED                 8     // 1 Fast, 128 Slowest 
-SignalEnvelope ENV1(ENV1_DECAY_SPEED, ENV1_OPERATION);
+#define ENV1_MA1_DECAY_SPEED          0.95     // 
+SignalEnvelope ENV1(ENV1_DECAY_SPEED, ENV1_MA1_DECAY_SPEED, ENV1_OPERATION);
 float Envelope1;
 
 #define ENV2_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
 #define ENV2_DECAY_SPEED                64     // 1 Fast, 128 Slowest 
-SignalEnvelope ENV2(ENV2_DECAY_SPEED, ENV2_OPERATION, CentralPoint);
+#define ENV2_MA1_DECAY_SPEED          0.97     // 
+SignalEnvelope ENV2(ENV2_DECAY_SPEED, ENV2_MA1_DECAY_SPEED, ENV2_OPERATION, CentralPoint);
 float Envelope2;
 
 //---- Setup ----------------------------------------------------------------
@@ -58,12 +63,12 @@ void setup() {
   Serial.print("\n---- Serial Started ----\n");
 
   ENV1.SetThres_Upper(CentralPoint + MaxAmpl);
-  ENV1.SetBaseline(CentralPoint);
-  ENV1.Set_Autocal_Millis(0);         // Fast Baseline update Speed
+  ENV1.SetBaseline(CentralPoint,0);
+  ENV1.Set_Autocal_Millis(100);         // Fast Baseline update Speed
 
   ENV2.SetThres_Upper(CentralPoint + MaxAmpl);
   //ENV2.SetBaseline(CentralPoint);  // Already Set in Constructor
-  ENV2.Set_Autocal_Millis(500);      // Slow Baseline update Speed
+  ENV2.Set_Autocal_Millis(2000);      // Slow Baseline update Speed
 }
 
 //---- Loop ----------------------------------------------------------------
@@ -75,7 +80,8 @@ void loop() {
   Angle     = (float)(LoopCount/360.0)*pi;
   Switch    *=-1;
   Amplitude = abs(sin(Angle)*random(0,10));    
-  RawSignal = CentralPoint*(1 + 0.01*cos((float)(LoopCount/120.0)*pi)) + Amplitude*Switch;
+  RawSignal = CentralPoint*(1 + 0.05*cos((float)(LoopCount/120.0)*pi)) + Amplitude*Switch;
+  RawSignal_MA1 = lambda * RawSignal_MA1 + (1-lambda) * RawSignal;
   
   //Call Envelope
   Envelope1      = ENV1.Envelope(RawSignal);
@@ -90,6 +96,13 @@ void loop() {
     Serial.print("\tRaw:");
     Serial.print(RawSignal,4);
     
+    Serial.print("\tRawMA1:");
+    Serial.print(RawSignal_MA1,4);
+
+    if (LoopCount % 250==0) {
+      ENV1.SetBaseline(RawSignal_MA1,0);
+    }
+
     Serial.print("\tENV1.Threshold:");
     Serial.print(ENV1.GetThres_Upper(),4);
     
@@ -117,6 +130,14 @@ void loop() {
     //RAW
     Serial.print(RawSignal,4);
     Serial.print(" ");
+
+    Serial.print(RawSignal_MA1,4);
+    Serial.print(" ");
+
+    if (LoopCount % 250==0) {
+      ENV1.SetBaseline(RawSignal_MA1,1);
+    }
+
     //ENV1
     Serial.print(Envelope1,4);
     Serial.print(" ");

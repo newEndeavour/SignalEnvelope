@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.h
-  Version:      0.0.5
+  Version:      0.0.6
   Date:         19-Dec-2018
-  Revision:     14-Feb-2019
+  Revision:     15-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   SignalEnvelope.h - Library for 'duino
@@ -47,7 +47,9 @@
 		  in place for those who liked it better).
   - 0.0.5	: Additional Moments : mean, variance, stddev for baseline and supporting methods.
 		  Better Error handling methodology
-  
+  - 0.0.6	: decouplong between Speed Factor and Moment MA1 TimeDecay factor. 
+		  Updating Constructors with float parameter.
+  		  Added supporting methods.
 
 */
 
@@ -61,10 +63,9 @@
 #define INITIAL_AUTOCAL_FREQ	     1000	// Autocalibration Frequency 5 secs
 #define MINSPEEDPARAM 			2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
 #define MAXSPEEDPARAM 	      	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
-#define SPEED_ATTENFACT      	      8.0	// Speed = 4, SPEED_ATTENFACT=2.0, Timedecay = 1 - 1 /(2.0 x 4) = 0.8750 (fast MA1)
-						// Speed = 4, SPEED_ATTENFACT=4.0, Timedecay = 1 - 1 /(4.0 x 4) = 0.9375 (medi MA1)
-						// Speed = 4, SPEED_ATTENFACT=8.0, Timedecay = 1 - 1 /(8.0 x 4) = 0.9687 (slow MA1)
-						// Speed = 4, SPEED_ATTENFACT=16., Timedecay = 1 - 1 /(16. x 4) = 0.9843 (slug MA1)
+#define MINMA1DECAYPARAM 		0	// 
+#define MAXMA1DECAYPARAM 	      	1	// 
+
 
 // library interface description
 class SignalEnvelope
@@ -72,9 +73,9 @@ class SignalEnvelope
   // user-accessible "public" interface
   public:
   // methods
-	SignalEnvelope(uint8_t _speed, int _operation);
-	SignalEnvelope(uint8_t _speed, int _operation, float _baseline);
-	SignalEnvelope(uint8_t _speed, int _operation, float _baseline, float _thres_upper, float _thres_lower);
+	SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation);
+	SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation, float _baseline);
+	SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation, float _baseline, float _thres_upper, float _thres_lower);
 
 	int 	GetisMomentsUpdate(void);
 	int 	GetisBaselineUpdate(void);
@@ -88,6 +89,7 @@ class SignalEnvelope
 	float 	GetEnvelope(void);				//Get the default envelope if operation is 0=Rising, 1=Falling
 
 	void 	SetSpeed(uint8_t _speed);			//Set speed level
+	void 	SetMa1decay(float _ma1decay);			//Set ma1decay level
 
 	void 	SetThres_Upper(float _thres_upper);		//Set threshold
 	void 	SetThres_Lower(float _thres_lower);		//Set threshold
@@ -98,11 +100,11 @@ class SignalEnvelope
 	void 	SetEnvelope_Upper(float _envelope);		//Set the Upper envelope level to specific value
 	void 	SetEnvelope_Lower(float _envelope);		//Set the Lower envelope level to specific value
 
-	void 	SetBaseline(float _baseline);			//Set the baseline
+	void 	SetBaseline(float _baseline, int preserve);	//Set the baseline, preserve (0,1) existing moments
 	float 	GetBaseline(void);				//Get the Baseline level
 
-	float 	GetTimedecay(void);				//Get the Timedecay factor
 	float 	GetSpeed(void);					//Get the Speed factor
+	float 	GetMa1decay(void);				//Get the ma1decay factor
 
 	float 	GetRawSignal_xi(void);				//Get the GetRawSignal_xi level
 	float 	GetRawSignal_xi2(void);				//Get the GetRawSignal_xi2 level
@@ -128,8 +130,9 @@ class SignalEnvelope
 	unsigned long  	Autocal_Millis;
 	unsigned long  	lastCal;
 
-	int 		operation;				//0=Upper, 1=Lower, 2=Double
-	uint8_t		speed;
+	int 		operation;				// 0=Upper, 1=Lower, 2=Double
+	uint8_t		speed;					// 	
+	float		ma1decay;				// 
 
 	float 		thres_upper; 
 	float 		thres_lower; 

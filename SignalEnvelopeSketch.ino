@@ -31,24 +31,25 @@
 
 static long double const   pi  =  3.14159265358979323846264338L;
 
-//---- Envelope object ----------------------------------------------------
-#define ENV_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
-#define ENV_DECAY_SPEED                16     // 1 Fast, 128 Slowest
- 
-SignalEnvelope ENV(ENV_DECAY_SPEED, ENV_OPERATION);
-float Envelope;
-float Baseline;
-float Thres_up;
-int   isAvgMA1New;
-int   isBaselineNew;
-
 //---- General Variables ----------------------------------------------------
 float Amplitude;
+float MaxAmpl = 10;
+float CentralPoint = 100;
 float Angle;
 float RawSignal;
 int Switch = 1;
-int Base = 5;
 int LoopCount = 0;
+
+//---- Envelope object ----------------------------------------------------
+#define ENV1_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
+#define ENV1_DECAY_SPEED                 4     // 1 Fast, 128 Slowest 
+SignalEnvelope ENV1(ENV1_DECAY_SPEED, ENV1_OPERATION);
+float Envelope1;
+
+#define ENV2_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
+#define ENV2_DECAY_SPEED                64     // 1 Fast, 128 Slowest 
+SignalEnvelope ENV2(ENV2_DECAY_SPEED, ENV2_OPERATION, CentralPoint);
+float Envelope2;
 
 //---- Setup ----------------------------------------------------------------
 void setup() {
@@ -56,11 +57,11 @@ void setup() {
   while (!Serial);
   Serial.print("\n---- Serial Started ----\n");
 
-  Thres_up = Base*1.5;
-  Baseline = 0;
-  ENV.SetThres_Upper(Thres_up);
-  ENV.SetBaseline(Baseline);
+  ENV1.SetThres_Upper(CentralPoint + MaxAmpl);
+  ENV1.SetBaseline(CentralPoint);
 
+  ENV2.SetThres_Upper(CentralPoint + MaxAmpl);
+  //ENV2.SetBaseline(CentralPoint);  // Already Set in Constructor
 }
 
 //---- Loop ----------------------------------------------------------------
@@ -72,10 +73,11 @@ void loop() {
   Angle     = (float)(LoopCount/360.0)*pi;
   Switch    *=-1;
   Amplitude = abs(sin(Angle)*random(0,10));    
-  RawSignal = Amplitude*Switch+Base;
+  RawSignal = CentralPoint + Amplitude*Switch;
   
   //Call Envelope
-  Envelope      = ENV.Envelope(RawSignal);
+  Envelope1      = ENV1.Envelope(RawSignal);
+  Envelope2      = ENV2.Envelope(RawSignal);
 
   #if defined(DISP_MONITOR)
     //-> Serial
@@ -86,26 +88,39 @@ void loop() {
     Serial.print("\tRaw:");
     Serial.print(RawSignal,4);
     
-    Serial.print("\tENV.Threshold:");
-    Serial.print(ENV.GetThres_Upper(),4);
+    Serial.print("\tENV1.Threshold:");
+    Serial.print(ENV1.GetThres_Upper(),4);
     
-    Serial.print("\tENV.Baseline:");
-    Serial.print(ENV.GetBaseline(),4);
+    Serial.print("\tENV1.Baseline:");
+    Serial.print(ENV1.GetBaseline(),4);
 
-    Serial.print("\tEnvelope:");
-    Serial.print(Envelope,4);
-    
+    Serial.print("\tEnvelope1:");
+    Serial.print(Envelope1,4);
+        
+    Serial.print("\tENV2.GetMA1Mean:");
+    Serial.print(ENV2.GetMA1Mean(),4);
+
+    Serial.print("\tENV2.GetMA1Variance:");
+    Serial.print(ENV2.GetMA1Variance(),4);
+
+    Serial.print("\tENV2.GetMA1StdDeviation:");
+    Serial.print(ENV2.GetMA1StdDeviation(),4);
+
+    Serial.print("\tEnvelope2:");
+    Serial.print(Envelope2,4);
     delay(100);
   #endif
 
   #if defined(DISP_PLOTTER)
     Serial.print(RawSignal,4);
     Serial.print(" ");
-    Serial.print(ENV.GetThres_Upper(),4);
+    Serial.print(ENV1.GetThres_Upper(),4);
     Serial.print(" ");
-    Serial.print(ENV.GetBaseline(),4);
+    Serial.print(ENV1.GetBaseline(),4);
     Serial.print(" ");
-    Serial.print(Envelope,4);
+    Serial.print(Envelope1,4);
+    Serial.print(" ");
+    Serial.print(Envelope2,4);
     Serial.print("\n");
     delay(10);
   #endif

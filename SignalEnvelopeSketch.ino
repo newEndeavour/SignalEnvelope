@@ -42,7 +42,7 @@ int LoopCount = 0;
 
 //---- Envelope object ----------------------------------------------------
 #define ENV1_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
-#define ENV1_DECAY_SPEED                 4     // 1 Fast, 128 Slowest 
+#define ENV1_DECAY_SPEED                 8     // 1 Fast, 128 Slowest 
 SignalEnvelope ENV1(ENV1_DECAY_SPEED, ENV1_OPERATION);
 float Envelope1;
 
@@ -59,9 +59,11 @@ void setup() {
 
   ENV1.SetThres_Upper(CentralPoint + MaxAmpl);
   ENV1.SetBaseline(CentralPoint);
+  ENV1.Set_Autocal_Millis(0);         // Fast Baseline update Speed
 
   ENV2.SetThres_Upper(CentralPoint + MaxAmpl);
   //ENV2.SetBaseline(CentralPoint);  // Already Set in Constructor
+  ENV2.Set_Autocal_Millis(500);      // Slow Baseline update Speed
 }
 
 //---- Loop ----------------------------------------------------------------
@@ -73,7 +75,7 @@ void loop() {
   Angle     = (float)(LoopCount/360.0)*pi;
   Switch    *=-1;
   Amplitude = abs(sin(Angle)*random(0,10));    
-  RawSignal = CentralPoint + Amplitude*Switch;
+  RawSignal = CentralPoint*(1 + 0.01*cos((float)(LoopCount/120.0)*pi)) + Amplitude*Switch;
   
   //Call Envelope
   Envelope1      = ENV1.Envelope(RawSignal);
@@ -112,15 +114,27 @@ void loop() {
   #endif
 
   #if defined(DISP_PLOTTER)
+    //RAW
     Serial.print(RawSignal,4);
+    Serial.print(" ");
+    //ENV1
+    Serial.print(Envelope1,4);
     Serial.print(" ");
     Serial.print(ENV1.GetThres_Upper(),4);
     Serial.print(" ");
     Serial.print(ENV1.GetBaseline(),4);
     Serial.print(" ");
-    Serial.print(Envelope1,4);
-    Serial.print(" ");
+    
+    //ENV2
     Serial.print(Envelope2,4);
+    Serial.print(" ");
+    Serial.print(ENV2.GetBaseline(),4);
+    Serial.print(" ");
+    
+    //Plotter Boundaries
+    Serial.print(CentralPoint*1.2,4);
+    Serial.print(" ");
+    Serial.print(CentralPoint/1.2,4);
     Serial.print("\n");
     delay(10);
   #endif

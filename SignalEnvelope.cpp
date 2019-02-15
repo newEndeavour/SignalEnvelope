@@ -300,6 +300,13 @@ void SignalEnvelope::SetBaseline(float _baseline)
 {
 	baseline		= _baseline;
 
+	//Reset Moments
+	raw_xi			= _baseline;
+	raw_xi2			= _baseline * _baseline;
+	raw_mean		= raw_xi;
+	raw_var			= raw_xi2 - (raw_xi * raw_xi);
+	raw_stdev		= sqrt(raw_var);
+
 	// Object parameter's error handling
 	ResetErrors();
 }

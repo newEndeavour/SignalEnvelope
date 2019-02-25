@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.h
-  Version:      0.0.6
+  Version:      0.0.7
   Date:         19-Dec-2018
-  Revision:     15-Feb-2019
+  Revision:     18-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   SignalEnvelope.h - Library for 'duino
@@ -45,11 +45,12 @@
 	  	  when the calculation falls under the baseline. this is to avoid a situation in Operation mode
 		  "double" (=2), when the envelope could potentially cross. (Code of the previous version is still 
 		  in place for those who liked it better).
-  - 0.0.5	: Additional Moments : mean, variance, stddev for baseline and supporting methods.
-		  Better Error handling methodology
+  - 0.0.5	: Better Error handling methodology
   - 0.0.6	: decouplong between Speed Factor and Moment MA1 TimeDecay factor. 
 		  Updating Constructors with float parameter.
   		  Added supporting methods.
+  - 0.0.7	: Simplification of object:
+		  removing baseline, thesholds, etc. 
 
 */
 
@@ -60,11 +61,13 @@
 
 #include "Arduino.h"
 
-#define INITIAL_AUTOCAL_FREQ	     1000	// Autocalibration Frequency 5 secs
+// DEFINES /////////////////////////////////////////////////////////////
+#define VER_SignalEnvelope	       	"0.0.7"		//
+#define REL_SignalEnvelope		"18Feb2019"	//
+
+
 #define MINSPEEDPARAM 			2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
 #define MAXSPEEDPARAM 	      	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
-#define MINMA1DECAYPARAM 		0	// 
-#define MAXMA1DECAYPARAM 	      	1	// 
 
 
 // library interface description
@@ -73,12 +76,9 @@ class SignalEnvelope
   // user-accessible "public" interface
   public:
   // methods
-	SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation);
-	SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation, float _baseline);
-	SignalEnvelope(uint8_t _speed, float _ma1decay, int _operation, float _baseline, float _thres_upper, float _thres_lower);
 
-	int 	GetisMomentsUpdate(void);
-	int 	GetisBaselineUpdate(void);
+	SignalEnvelope(uint8_t _speed, int _operation);
+	SignalEnvelope(uint8_t _speed, int _operation, float _thres_upper, float _thres_lower);
 
 	float 	Envelope(float rawSignal);			//Update and return the default envelope level 
 								//if operation 0=Rising, 1=Falling
@@ -89,72 +89,31 @@ class SignalEnvelope
 	float 	GetEnvelope(void);				//Get the default envelope if operation is 0=Rising, 1=Falling
 
 	void 	SetSpeed(uint8_t _speed);			//Set speed level
-	void 	SetMa1decay(float _ma1decay);			//Set ma1decay level
-
-	void 	SetThres_Upper(float _thres_upper);		//Set threshold
-	void 	SetThres_Lower(float _thres_lower);		//Set threshold
-	float 	GetThres_Upper(void);				//Get the thres_upper level
-	float 	GetThres_Lower(void);				//Get the thres_lower level
 
 	void 	SetEnvelope(float _envelope);			//Set the envelope level to specific value
 	void 	SetEnvelope_Upper(float _envelope);		//Set the Upper envelope level to specific value
 	void 	SetEnvelope_Lower(float _envelope);		//Set the Lower envelope level to specific value
 
-	void 	SetBaseline(float _baseline, int preserve);	//Set the baseline, preserve (0,1) existing moments
-	float 	GetBaseline(void);				//Get the Baseline level
-
 	float 	GetSpeed(void);					//Get the Speed factor
-	float 	GetMa1decay(void);				//Get the ma1decay factor
-
-	float 	GetRawSignal_xi(void);				//Get the GetRawSignal_xi level
-	float 	GetRawSignal_xi2(void);				//Get the GetRawSignal_xi2 level
-	float 	GetRawSignal_Mean(void);			//Get the GetRawSignal_mean level
-	float 	GetRawSignal_Variance(void);			//Get the GetRawSignal_var level
-	float 	GetRawSignal_StDeviation(void);			//Get the GetRawSignal_stdev level
-
-	void 	Reset_AutoCal();				// Reset Autocal_Millis
-	void 	Disable_AutoCal();				// Stops Baseline update. To Return to baseline update use 
-								// Set_Autocal_Millis(x) where x>0
-
-	void 	Set_Autocal_Millis(unsigned long autoCal_millis);
-	unsigned long Get_Autocal_Millis(void);
+	String 	GetVersion();					//Returns version number	
+	String 	GetReleaseDate();				//Returns Release Date
 
   // library-accessible "private" interface
   private:
   // variables
 
 	int 		error;
-	int 		isMomentsUpdate;
-	int		isBaselineUpdate;
-
-	unsigned long  	Autocal_Millis;
-	unsigned long  	lastCal;
 
 	int 		operation;				// 0=Upper, 1=Lower, 2=Double
 	uint8_t		speed;					// 	
-	float		ma1decay;				// 
 
-	float 		thres_upper; 
-	float 		thres_lower; 
-
-	float		timedecay;
 	float 		envelope_up;
 	float 		envelope_lo;
-	float 		baseline;
 	
-	float		raw_xi; 
-	float		raw_xi2; 
-	float		raw_mean; 
-	float		raw_var; 
-	float		raw_stdev; 
-
   // methods
 	void 	CalculateEnvelope(float rawSignal);
 	void 	CalculateEnvelope_Up(float rawSignal);
 	void 	CalculateEnvelope_Lo(float rawSignal);
-
-	void 	Update_RawSignal_Moments(float rawSignal);
-	void 	UpdateBaseline(float rawSignal);
 
 	void 	ResetErrors(void);	// Error flag handling
 

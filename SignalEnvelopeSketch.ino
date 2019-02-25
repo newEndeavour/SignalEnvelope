@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelopeSketch.ino
-  Version:      0.0.1
+  Version:      0.0.7
   Date:         19-Dec-2018
-  Revision:     14-Feb-2019
+  Revision:     18-Feb-2019
   Author:       Jerome Drouin
   
   https://github.com/newEndeavour/SignalEnvelope
@@ -47,13 +47,13 @@ int LoopCount = 0;
 #define ENV1_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
 #define ENV1_DECAY_SPEED                 8     // 1 Fast, 128 Slowest 
 #define ENV1_MA1_DECAY_SPEED          0.95     // 
-SignalEnvelope ENV1(ENV1_DECAY_SPEED, ENV1_MA1_DECAY_SPEED, ENV1_OPERATION);
+SignalEnvelope ENV1(ENV1_DECAY_SPEED, ENV1_OPERATION);
 float Envelope1;
 
 #define ENV2_OPERATION                   0     // 0=Rising / 1=Falling / 2=Double 
 #define ENV2_DECAY_SPEED                64     // 1 Fast, 128 Slowest 
 #define ENV2_MA1_DECAY_SPEED          0.97     // 
-SignalEnvelope ENV2(ENV2_DECAY_SPEED, ENV2_MA1_DECAY_SPEED, ENV2_OPERATION, CentralPoint);
+SignalEnvelope ENV2(ENV2_DECAY_SPEED, ENV2_OPERATION);
 float Envelope2;
 
 //---- Setup ----------------------------------------------------------------
@@ -62,13 +62,6 @@ void setup() {
   while (!Serial);
   Serial.print("\n---- Serial Started ----\n");
 
-  ENV1.SetThres_Upper(CentralPoint + MaxAmpl);
-  ENV1.SetBaseline(CentralPoint,0);
-  ENV1.Set_Autocal_Millis(100);         // Fast Baseline update Speed
-
-  ENV2.SetThres_Upper(CentralPoint + MaxAmpl);
-  //ENV2.SetBaseline(CentralPoint);  // Already Set in Constructor
-  ENV2.Set_Autocal_Millis(2000);      // Slow Baseline update Speed
 }
 
 //---- Loop ----------------------------------------------------------------
@@ -99,28 +92,9 @@ void loop() {
     Serial.print("\tRawMA1:");
     Serial.print(RawSignal_MA1,4);
 
-    if (LoopCount % 250==0) {
-      ENV1.SetBaseline(RawSignal_MA1,0);
-    }
-
-    Serial.print("\tENV1.Threshold:");
-    Serial.print(ENV1.GetThres_Upper(),4);
-    
-    Serial.print("\tENV1.Baseline:");
-    Serial.print(ENV1.GetBaseline(),4);
-
     Serial.print("\tEnvelope1:");
     Serial.print(Envelope1,4);
         
-    Serial.print("\tENV2.GetMA1Mean:");
-    Serial.print(ENV2.GetMA1Mean(),4);
-
-    Serial.print("\tENV2.GetMA1Variance:");
-    Serial.print(ENV2.GetMA1Variance(),4);
-
-    Serial.print("\tENV2.GetMA1StdDeviation:");
-    Serial.print(ENV2.GetMA1StdDeviation(),4);
-
     Serial.print("\tEnvelope2:");
     Serial.print(Envelope2,4);
     delay(100);
@@ -134,22 +108,12 @@ void loop() {
     Serial.print(RawSignal_MA1,4);
     Serial.print(" ");
 
-    if (LoopCount % 250==0) {
-      ENV1.SetBaseline(RawSignal_MA1,1);
-    }
-
     //ENV1
     Serial.print(Envelope1,4);
-    Serial.print(" ");
-    Serial.print(ENV1.GetThres_Upper(),4);
-    Serial.print(" ");
-    Serial.print(ENV1.GetBaseline(),4);
     Serial.print(" ");
     
     //ENV2
     Serial.print(Envelope2,4);
-    Serial.print(" ");
-    Serial.print(ENV2.GetBaseline(),4);
     Serial.print(" ");
     
     //Plotter Boundaries

@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.h
-  Version:      0.0.7
+  Version:      0.0.8
   Date:         19-Dec-2018
-  Revision:     18-Feb-2019
+  Revision:     26-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   SignalEnvelope.h - Library for 'duino
@@ -51,6 +51,7 @@
   		  Added supporting methods.
   - 0.0.7	: Simplification of object:
 		  removing baseline, thesholds, etc. 
+  - 0.0.8	: splitting speed into speed_decay and speed_attack
 
 */
 
@@ -62,11 +63,11 @@
 #include "Arduino.h"
 
 // DEFINES /////////////////////////////////////////////////////////////
-#define VER_SignalEnvelope	       	"0.0.7"		//
-#define REL_SignalEnvelope		"18Feb2019"	//
+#define VER_SignalEnvelope	       	"0.0.8"		//
+#define REL_SignalEnvelope		"26Feb2019"	//
 
 
-#define MINSPEEDPARAM 			2	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
+#define MINSPEEDPARAM 			1	// MinSpeed = 2	 , Beta = 1/2, decay = 0.50
 #define MAXSPEEDPARAM 	      	      128	// MaxSpeed = 128, Beta = 1/128, decay = 0.9921
 
 
@@ -77,8 +78,8 @@ class SignalEnvelope
   public:
   // methods
 
-	SignalEnvelope(uint8_t _speed, int _operation);
-	SignalEnvelope(uint8_t _speed, int _operation, float _thres_upper, float _thres_lower);
+	SignalEnvelope(uint8_t _speed_attack, uint8_t _speed_decay, int _operation);
+	SignalEnvelope(uint8_t _speed_attack, uint8_t _speed_decay, int _operation, float _thres_upper, float _thres_lower);
 
 	float 	Envelope(float rawSignal);			//Update and return the default envelope level 
 								//if operation 0=Rising, 1=Falling
@@ -88,13 +89,16 @@ class SignalEnvelope
 	float 	GetEnvelope(int returntype);			//Get the requested envelope level and return 0=Rising, 1=Falling
 	float 	GetEnvelope(void);				//Get the default envelope if operation is 0=Rising, 1=Falling
 
-	void 	SetSpeed(uint8_t _speed);			//Set speed level
+	float 	GetSpeedDecay(void);				//Get the speed_decay factor
+	float 	GetSpeedAttack(void);				//Get the speed_attack factor
+
+	void 	SetSpeedDecay(uint8_t _speed_decay);		//Set speed_decay level
+	void 	SetSpeedAttack(uint8_t _speed_attack);		//Set speed_attack level
 
 	void 	SetEnvelope(float _envelope);			//Set the envelope level to specific value
 	void 	SetEnvelope_Upper(float _envelope);		//Set the Upper envelope level to specific value
 	void 	SetEnvelope_Lower(float _envelope);		//Set the Lower envelope level to specific value
 
-	float 	GetSpeed(void);					//Get the Speed factor
 	String 	GetVersion();					//Returns version number	
 	String 	GetReleaseDate();				//Returns Release Date
 
@@ -105,7 +109,9 @@ class SignalEnvelope
 	int 		error;
 
 	int 		operation;				// 0=Upper, 1=Lower, 2=Double
-	uint8_t		speed;					// 	
+
+	uint8_t		speed_decay;				// 	
+	uint8_t		speed_attack;				// 	
 
 	float 		envelope_up;
 	float 		envelope_lo;

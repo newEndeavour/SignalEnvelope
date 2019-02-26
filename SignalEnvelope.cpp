@@ -1,8 +1,8 @@
 /*
   File:         SignalEnvelope.cpp
-  Version:      0.0.7
+  Version:      0.0.8
   Date:         19-Dec-2018
-  Revision:     18-Feb-2019
+  Revision:     26-Feb-2019
   Author:       Jerome Drouin (jerome.p.drouin@gmail.com)
 
   Editions:	Please go to SignalEnvelope.h for Edition Notes.
@@ -44,11 +44,12 @@
 
 // Constructor /////////////////////////////////////////////////////////////////
 // Function that handles the creation and setup of instances
-SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
+SignalEnvelope::SignalEnvelope(uint8_t _speed_attack, uint8_t _speed_decay, int _operation)
 {
 
 	//Set initial values	
-	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+	speed_decay		= _speed_decay;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+	speed_attack		= _speed_attack;		// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
 
 	operation		= _operation;			//0=Upper, 1=Lower, 2=Double
 
@@ -61,11 +62,12 @@ SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation)
 
 
 
-SignalEnvelope::SignalEnvelope(uint8_t _speed, int _operation, float _thres_upper, float _thres_lower)
+SignalEnvelope::SignalEnvelope(uint8_t _speed_attack, uint8_t _speed_decay, int _operation, float _thres_upper, float _thres_lower)
 {
 
 	//Set initial values	
-	speed			= _speed;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+	speed_decay		= _speed_decay;			// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+	speed_attack		= _speed_attack;		// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
 
 	operation		= _operation;			//0=Upper, 1=Lower, 2=Double
 
@@ -172,12 +174,24 @@ float SignalEnvelope::GetEnvelope(int returntype)
 
 
 
-//Set the envelope speed
-void SignalEnvelope::SetSpeed(uint8_t _speed)
+//Set the envelope speed_decay
+void SignalEnvelope::SetSpeedDecay(uint8_t _speed_decay)
 {
 
 	//Set initial values	
-	speed				= _speed;	// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+	speed_decay		= _speed_decay;		// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
+
+	// Object parameter's error handling
+	ResetErrors();
+}
+
+
+//Set the envelope speed_attack
+void SignalEnvelope::SetSpeedAttack(uint8_t _speed_attack)
+{
+
+	//Set initial values	
+	speed_attack		= _speed_attack; 	// Speeds from Fastest-Slowest: // 2, 4, 8, 16, 32, 64, 128
 
 	// Object parameter's error handling
 	ResetErrors();
@@ -224,10 +238,16 @@ void SignalEnvelope::SetEnvelope(float _envelope)
 
 
 
-//Get the speed parameter
-float SignalEnvelope::GetSpeed(void)
+//Get the speed_decay parameter
+float SignalEnvelope::GetSpeedDecay(void)
 {
-	return speed;	
+	return speed_decay;	
+}
+
+//Get the speed_attack parameter
+float SignalEnvelope::GetSpeedAttack(void)
+{
+	return speed_attack;	
 }
 
 
@@ -239,26 +259,17 @@ float SignalEnvelope::GetSpeed(void)
 void SignalEnvelope::CalculateEnvelope_Up(float rawSignal)
 {
 float decay;
-
-	decay  	= (envelope_up - rawSignal) / speed;
+float attack;
 
 	// Update envelope_up
 	if (rawSignal>envelope_up) {
-		envelope_up = rawSignal;		// Attack
-	} else {
-		envelope_up -= decay;	 		// Decay
-
-		/*
-		//MUST REVISIT
-		//This is causing a lot of issues: 
-		//- this makes the decay depend on the baseline update frequency
-		//- if baseline increases during a press event, the decay is hampered by this instruction
-		// and as a result, the ST might never cross the RELEASE level until baseline is updated
 		
-		if (envelope_up<baseline) 		// Boundary condition
-			envelope_up = baseline;
-		*/
-
+		attack	     = (rawSignal - envelope_up) / speed_attack; 	
+		envelope_up += attack;					// Attack
+		
+	} else {
+		decay  	     = (envelope_up - rawSignal) / speed_decay;
+		envelope_up -= decay;	 				// Decay
 	}
 
 }
@@ -268,24 +279,19 @@ float decay;
 void SignalEnvelope::CalculateEnvelope_Lo(float rawSignal)
 {
 float decay;
-
-	decay  	= (rawSignal - envelope_lo) / speed;
+float attack;
 
 	// Update envelope_lo
 	if (rawSignal<envelope_lo) {
-		envelope_lo = rawSignal;		// Attack
-	} else {
-		envelope_lo += decay;	 		// Decay
-		/*
-		SEE ABOVE UP VERSION FOR CHANGES
-		if (envelope_lo>baseline) 		// Boundary condition
-			envelope_lo = baseline;
-		*/
+		attack	     = (rawSignal - envelope_lo) / speed_attack; 	
+		envelope_lo += attack;					// Attack
+
+	} else {		
+		decay  	     = (envelope_lo - rawSignal) / speed_decay;
+		envelope_lo -= decay;	 				// Decay
 	}
 
 }
-
-
 
 
 // Calculates Envelope
@@ -331,8 +337,11 @@ void SignalEnvelope::ResetErrors(void)
 	 && (operation!=1)
 	 && (operation!=2)) 			error =-5;	// incorrect _operation mode
 
-	if (speed<MINSPEEDPARAM) 		error =-4;	// incorrect speed variable
-	if (speed>MAXSPEEDPARAM) 		error =-4;	// incorrect speed variable
+	if (speed_decay<MINSPEEDPARAM) 		error =-4;	// incorrect speed_decay variable
+	if (speed_decay>MAXSPEEDPARAM) 		error =-4;	// incorrect speed_decay variable
+
+	if (speed_attack<MINSPEEDPARAM) 	error =-3;	// incorrect speed_attack variable
+	if (speed_attack>MAXSPEEDPARAM) 	error =-3;	// incorrect speed_attack variable
 	
 
 }
